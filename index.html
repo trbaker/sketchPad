@@ -211,6 +211,19 @@
   .modal-actions{display:flex;justify-content:flex-end;gap:9px;}
   .btn.danger{background:#B23A2E;border-color:#B23A2E;color:var(--paper-bg);}
   .btn.danger:hover{background:#9C3127;border-color:#9C3127;}
+
+  /* export fallback modal */
+  .modal.export{width:440px;}
+  .modal.export .modal-actions{flex-wrap:wrap;}
+  .export-preview{
+    margin:4px 0 10px;border:1px solid var(--edge);border-radius:12px;overflow:hidden;
+    background:
+      conic-gradient(var(--ink-100) 25%, transparent 0 50%, var(--ink-100) 0 75%, transparent 0) 0 0/16px 16px,
+      var(--white);
+    max-height:300px;display:flex;align-items:center;justify-content:center;
+  }
+  .export-preview img{display:block;max-width:100%;max-height:300px;height:auto;}
+  .export-hint{margin:0 0 16px !important;font-size:12px !important;color:var(--muted) !important;}
 </style>
 </head>
 <body>
@@ -296,6 +309,21 @@
       <div class="modal-actions">
         <button class="btn ghost" id="clearCancel">Cancel</button>
         <button class="btn danger" id="clearConfirm">Clear canvas</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="exportModal" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
+    <div class="modal export">
+      <h2 id="exportTitle">Save your drawing</h2>
+      <p id="exportNote">Pick any option below to keep your drawing.</p>
+      <div class="export-preview"><img id="exportImg" alt="Your drawing" /></div>
+      <p class="export-hint">Or right-click the image and choose “Save image as…” (long-press on mobile).</p>
+      <div class="modal-actions">
+        <button class="btn ghost" id="exportClose">Close</button>
+        <button class="btn ghost" id="exportCopy">Copy image</button>
+        <button class="btn ghost" id="exportOpen">Open in new tab</button>
+        <a class="btn primary" id="exportDownload" download="sketchpad-drawing.jpg" href="#">Download</a>
       </div>
     </div>
   </div>
@@ -686,18 +714,91 @@
   document.getElementById('clearCancel').addEventListener('click', closeClearModal);
   document.getElementById('clearConfirm').addEventListener('click', ()=>{ doClear(); closeClearModal(); });
   clearModal.addEventListener('click', (e)=>{ if(e.target === clearModal) closeClearModal(); });
-  document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape' && clearModal.classList.contains('open')) closeClearModal(); });
+  document.addEventListener('keydown', (e)=>{
+    if(e.key !== 'Escape') return;
+    if(clearModal.classList.contains('open')) closeClearModal();
+    if(exportModal.classList.contains('open')) closeExportModal();
+  });
 
-  // ----- Save JPG (drawing space only) -----
-  document.getElementById('saveBtn').addEventListener('click', ()=>{
-    // main already holds opaque white background + committed art at full resolution
-    const url = main.toDataURL('image/jpeg', 0.92);
+  // ----- Save (drawing space only) -----
+  // In a sandboxed/embedded iframe the browser may block the <a download> click.
+  // So: top-level → download directly; embedded → show an export panel that offers
+  // download + open-in-new-tab + copy-to-clipboard + manual right-click/long-press save.
+  const isEmbedded = (function(){ try { return window.self !== window.top; } catch(e){ return true; } })();
+
+  const exportModal    = document.getElementById('exportModal');
+  const exportImg      = document.getElementById('exportImg');
+  const exportNote     = document.getElementById('exportNote');
+  const exportDownload = document.getElementById('exportDownload');
+  let exportUrl = null;
+
+  function makeJpeg(cb){
+    if(main.toBlob){
+      main.toBlob((blob)=>{
+        if(blob) cb(URL.createObjectURL(blob), true);
+        else cb(main.toDataURL('image/jpeg', 0.92), false);
+      }, 'image/jpeg', 0.92);
+    } else {
+      cb(main.toDataURL('image/jpeg', 0.92), false);
+    }
+  }
+  function clickDownload(url){
     const a = document.createElement('a');
     a.href = url;
     a.download = 'sketchpad-drawing.jpg';
+    a.rel = 'noopener';
     document.body.appendChild(a);
     a.click();
     a.remove();
+  }
+  function openExportModal(url){
+    if(exportUrl && exportUrl.startsWith('blob:')) URL.revokeObjectURL(exportUrl);
+    exportUrl = url;
+    exportImg.src = url;
+    exportDownload.href = url;
+    exportNote.textContent = "Your drawing is ready. The Download button works in most embeds — if your host blocks it, use one of the other options.";
+    exportModal.classList.add('open');
+  }
+  function closeExportModal(){ exportModal.classList.remove('open'); }
+
+  document.getElementById('saveBtn').addEventListener('click', ()=>{
+    makeJpeg((url)=>{
+      if(isEmbedded){
+        openExportModal(url);          // embedded: downloads are often sandbox-blocked
+      } else {
+        clickDownload(url);            // top-level: normal silent download
+        if(url.startsWith('blob:')) setTimeout(()=>URL.revokeObjectURL(url), 10000);
+      }
+    });
+  });
+
+  // export panel actions
+  document.getElementById('exportClose').addEventListener('click', closeExportModal);
+  exportModal.addEventListener('click', (e)=>{ if(e.target === exportModal) closeExportModal(); });
+  exportDownload.addEventListener('click', ()=>{ /* native download via href+download */ });
+
+  document.getElementById('exportOpen').addEventListener('click', ()=>{
+    const w = window.open();
+    if(w){
+      w.document.write('<title>Sketchpad drawing</title><body style="margin:0;background:#1a1714;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="'+exportUrl+'" style="max-width:100%;height:auto" alt="drawing"></body>');
+      w.document.close();
+    } else {
+      exportNote.textContent = "Pop-ups are blocked here — right-click the image above and choose “Save image as…”.";
+    }
+  });
+
+  document.getElementById('exportCopy').addEventListener('click', (e)=>{
+    const btn = e.currentTarget;
+    const done = (msg)=>{ const t=btn.textContent; btn.textContent=msg; setTimeout(()=>btn.textContent=t, 1600); };
+    if(!(navigator.clipboard && window.ClipboardItem && main.toBlob)){
+      done('Not supported'); return;
+    }
+    main.toBlob((blob)=>{
+      if(!blob){ done('Failed'); return; }
+      navigator.clipboard.write([new ClipboardItem({'image/png': blob})])
+        .then(()=>done('Copied!'))
+        .catch(()=>done('Blocked'));
+    }, 'image/png');
   });
 
   // ----- Zoom -----
