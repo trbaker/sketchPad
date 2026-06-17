@@ -32,8 +32,8 @@
 
   /* ---- Top bar ---- */
   header{
-    display:flex;align-items:center;gap:18px;
-    padding:12px 18px;border-bottom:1px solid var(--edge);
+    display:flex;align-items:center;gap:16px;
+    padding:7px 16px;border-bottom:1px solid var(--edge);
     background:linear-gradient(180deg,#2a2e35,#23272d);
     flex:0 0 auto;flex-wrap:wrap;
   }
@@ -54,7 +54,7 @@
   button{font-family:inherit;color:var(--ink);cursor:pointer;}
   .btn{
     border:1px solid var(--edge);background:var(--panel);
-    border-radius:9px;padding:9px 14px;font-size:13px;font-weight:600;
+    border-radius:9px;padding:7px 13px;font-size:13px;font-weight:600;
     display:inline-flex;align-items:center;gap:7px;transition:background .12s,border-color .12s,transform .04s;
   }
   .btn:hover{background:var(--panel-2);}
@@ -63,36 +63,54 @@
   .btn.primary:hover{background:#4c79f4;}
   .btn.ghost{background:transparent;}
 
-  /* ---- Brush picker (signature element: live stroke previews) ---- */
-  .brushes{display:flex;gap:8px;}
-  .brush{
-    border:1px solid var(--edge);background:var(--panel);border-radius:10px;
-    padding:6px 6px 5px;width:74px;display:flex;flex-direction:column;align-items:center;gap:3px;
-    transition:border-color .12s,background .12s;
+  /* ---- Dropdowns (tool + color) ---- */
+  .dd{position:relative;}
+  .dd-trigger{
+    border:1px solid var(--edge);background:var(--panel);border-radius:9px;
+    height:34px;padding:0 8px 0 7px;display:inline-flex;align-items:center;gap:8px;
+    font-size:13px;font-weight:600;transition:background .12s,border-color .12s;
   }
-  .brush:hover{background:var(--panel-2);}
-  .brush.active{border-color:var(--accent);background:rgba(59,108,240,.14);box-shadow:0 0 0 1px var(--accent) inset;}
-  .brush canvas{display:block;border-radius:5px;background:#fbfbfc;}
-  .brush span{font-size:10.5px;color:var(--muted);font-weight:600;letter-spacing:.02em;}
-  .brush.active span{color:var(--ink);}
+  .dd-trigger:hover{background:var(--panel-2);}
+  .dd-trigger.open{border-color:var(--accent);}
+  .dd-trigger .chev{width:13px;height:13px;color:var(--muted);transition:transform .15s;}
+  .dd-trigger.open .chev{transform:rotate(180deg);}
+  #brushPreview{display:block;border-radius:4px;background:#fbfbfc;}
+  .dd-swatch{width:18px;height:18px;border-radius:5px;border:1px solid rgba(255,255,255,.28);}
 
-  /* ---- Color palette ---- */
-  .swatches{display:flex;gap:6px;align-items:center;}
+  .dd-panel{
+    position:absolute;top:calc(100% + 6px);left:0;z-index:40;
+    background:var(--panel);border:1px solid var(--edge);border-radius:12px;
+    padding:6px;box-shadow:0 16px 44px rgba(0,0,0,.5);display:none;
+  }
+  .dd-panel.open{display:block;}
+
+  /* brush items */
+  #brushPanel{min-width:172px;}
+  .dd-item{
+    display:flex;align-items:center;gap:10px;width:100%;padding:6px 9px;border-radius:8px;
+    border:1px solid transparent;background:transparent;font-size:13px;font-weight:600;color:var(--ink);
+  }
+  .dd-item:hover{background:var(--panel-2);}
+  .dd-item.active{background:rgba(59,108,240,.16);border-color:var(--accent);}
+  .dd-item canvas{display:block;border-radius:4px;background:#fbfbfc;}
+
+  /* color grid */
+  .swatches-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;padding:4px;}
   .swatch{
-    width:24px;height:24px;border-radius:50%;border:2px solid rgba(255,255,255,.18);
-    padding:0;cursor:pointer;position:relative;transition:transform .08s;
+    width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.18);
+    padding:0;cursor:pointer;transition:transform .08s;
   }
   .swatch:hover{transform:scale(1.08);}
   .swatch.active{border-color:#fff;box-shadow:0 0 0 2px var(--accent);}
-  .swatch.white{border-color:rgba(0,0,0,.18);}
-  .custom-wrap{position:relative;width:24px;height:24px;}
-  .custom-wrap input{
-    position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;
+  .swatch.white{border-color:rgba(0,0,0,.22);}
+  .custom-row{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    margin-top:6px;padding:8px 8px 4px;border-top:1px solid var(--edge);
+    font-size:12px;color:var(--muted);font-weight:600;
   }
-  .custom-wrap .ring{
-    width:24px;height:24px;border-radius:50%;
-    background:conic-gradient(red,orange,yellow,lime,cyan,blue,magenta,red);
-    border:2px solid rgba(255,255,255,.25);
+  .custom-row input[type=color]{
+    width:30px;height:24px;border:1px solid var(--edge);border-radius:6px;
+    background:none;padding:2px;cursor:pointer;
   }
 
   /* ---- Size ---- */
@@ -164,6 +182,23 @@
     .group + .group{padding-left:12px;}
     .brand .sub{display:none;}
   }
+
+  /* ---- Confirm modal ---- */
+  .modal-backdrop{
+    position:fixed;inset:0;background:rgba(10,12,15,.55);backdrop-filter:blur(2px);
+    display:none;align-items:center;justify-content:center;z-index:50;
+  }
+  .modal-backdrop.open{display:flex;}
+  .modal{
+    width:320px;max-width:calc(100vw - 32px);
+    background:var(--panel);border:1px solid var(--edge);border-radius:14px;
+    padding:20px;box-shadow:0 18px 50px rgba(0,0,0,.5);
+  }
+  .modal h2{margin:0 0 6px;font-size:15px;font-weight:700;letter-spacing:-.01em;}
+  .modal p{margin:0 0 18px;font-size:13px;color:var(--muted);line-height:1.5;}
+  .modal-actions{display:flex;justify-content:flex-end;gap:9px;}
+  .btn.danger{background:#d8463c;border-color:#d8463c;}
+  .btn.danger:hover{background:#e3554b;}
 </style>
 </head>
 <body>
@@ -175,16 +210,32 @@
 
     <div class="group">
       <span class="eyebrow">Tool</span>
-      <div class="brushes" id="brushes"></div>
+      <div class="dd" id="brushDD">
+        <button class="dd-trigger" id="brushTrigger" aria-haspopup="true">
+          <canvas id="brushPreview" width="46" height="18"></canvas>
+          <span id="brushName">Pencil</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="dd-panel" id="brushPanel"></div>
+      </div>
     </div>
 
     <div class="group">
       <span class="eyebrow">Color</span>
-      <div class="swatches" id="swatches"></div>
-      <label class="custom-wrap" title="Custom color">
-        <span class="ring"></span>
-        <input type="color" id="customColor" value="#3b6cf0" />
-      </label>
+      <div class="dd" id="colorDD">
+        <button class="dd-trigger" id="colorTrigger" aria-haspopup="true">
+          <span class="dd-swatch" id="colorChip"></span>
+          <span id="colorName">Black</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="dd-panel" id="colorPanel">
+          <div class="swatches-grid" id="swatches"></div>
+          <label class="custom-row">
+            <span>Custom color</span>
+            <input type="color" id="customColor" value="#3b6cf0" />
+          </label>
+        </div>
+      </div>
     </div>
 
     <div class="group size">
@@ -199,7 +250,7 @@
       <button class="btn ghost" id="clearBtn">Clear</button>
       <button class="btn primary" id="saveBtn">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
-        Save JPG
+        Save
       </button>
     </div>
   </header>
@@ -224,6 +275,17 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>
       Get a drawing pad
     </a>
+  </div>
+
+  <div class="modal-backdrop" id="clearModal" role="dialog" aria-modal="true" aria-labelledby="clearTitle">
+    <div class="modal">
+      <h2 id="clearTitle">Clear the canvas?</h2>
+      <p>This erases everything you've drawn. It can't be undone.</p>
+      <div class="modal-actions">
+        <button class="btn ghost" id="clearCancel">Cancel</button>
+        <button class="btn danger" id="clearConfirm">Clear canvas</button>
+      </div>
+    </div>
   </div>
 
 <script>
@@ -463,27 +525,37 @@
   board.addEventListener('pointermove', updateCursor);
   board.addEventListener('pointerenter', updateCursor);
 
-  // ----- Build brush buttons with live previews -----
-  const brushesEl = document.getElementById('brushes');
+  // ----- Build brush dropdown with live previews -----
+  const brushPanel   = document.getElementById('brushPanel');
+  const brushPreview = document.getElementById('brushPreview');
+  const brushName    = document.getElementById('brushName');
+
   function buildBrushes(){
-    brushesEl.innerHTML = '';
+    brushPanel.innerHTML = '';
     BRUSH_ORDER.forEach(key=>{
       const b = BRUSHES[key];
-      const btn = document.createElement('button');
-      btn.className = 'brush' + (key===state.tool?' active':'');
-      btn.dataset.tool = key;
+      const item = document.createElement('button');
+      item.className = 'dd-item' + (key===state.tool?' active':'');
+      item.dataset.tool = key;
       const pv = document.createElement('canvas');
-      pv.width = 64; pv.height = 30;
+      pv.width = 60; pv.height = 22;
       const label = document.createElement('span');
       label.textContent = b.label;
-      btn.appendChild(pv); btn.appendChild(label);
-      brushesEl.appendChild(btn);
+      item.appendChild(pv); item.appendChild(label);
+      brushPanel.appendChild(item);
       drawPreview(pv, key);
-      btn.addEventListener('click', ()=>{
+      item.addEventListener('click', ()=>{
         state.tool = key;
-        document.querySelectorAll('.brush').forEach(x=>x.classList.toggle('active', x.dataset.tool===key));
+        brushPanel.querySelectorAll('.dd-item').forEach(x=>x.classList.toggle('active', x.dataset.tool===key));
+        updateBrushTrigger();
+        closeAllDD();
       });
     });
+    updateBrushTrigger();
+  }
+  function updateBrushTrigger(){
+    drawPreview(brushPreview, state.tool);
+    brushName.textContent = BRUSHES[state.tool].label;
   }
 
   function drawPreview(canvas, key){
@@ -494,7 +566,7 @@
     const pts = [];
     for(let i=0;i<=24;i++){
       const t=i/24;
-      pts.push({x:8 + t*(w-16), y:h/2 + Math.sin(t*Math.PI*2)*7});
+      pts.push({x:8 + t*(w-16), y:h/2 + Math.sin(t*Math.PI*2)*5});
     }
     const b = BRUSHES[key];
     const col = key==='eraser' ? '#c7ccd6' : '#1b1e24';
@@ -529,23 +601,56 @@
     {c:'#8a5a3c', n:'Brown'}
   ];
   const swatchesEl = document.getElementById('swatches');
-  PRESETS.forEach((p,i)=>{
+  const colorChip  = document.getElementById('colorChip');
+  const colorName  = document.getElementById('colorName');
+
+  function setColor(c, name, el){
+    state.color = c;
+    swatchesEl.querySelectorAll('.swatch').forEach(x=>x.classList.remove('active'));
+    if(el) el.classList.add('active');
+    colorChip.style.background = c;
+    colorName.textContent = name || 'Custom';
+  }
+
+  PRESETS.forEach((p)=>{
     const s = document.createElement('button');
-    s.className = 'swatch' + (p.white?' white':'') + (p.c.toLowerCase()===state.color?' active':'');
+    s.className = 'swatch' + (p.white?' white':'');
     s.style.background = p.c;
     s.title = p.n;
-    s.addEventListener('click', ()=> setColor(p.c, s));
+    s.dataset.color = p.c.toLowerCase();
+    s.addEventListener('click', ()=>{ setColor(p.c, p.n, s); closeAllDD(); });
     swatchesEl.appendChild(s);
   });
-  function setColor(c, el){
-    state.color = c;
-    document.querySelectorAll('.swatch').forEach(x=>x.classList.remove('active'));
-    if(el) el.classList.add('active');
-    // if switching to a real color, leave eraser only when user picks eraser explicitly
-  }
   document.getElementById('customColor').addEventListener('input', (e)=>{
-    setColor(e.target.value, null);
+    setColor(e.target.value, 'Custom', null);
   });
+  // initialize trigger to the starting color
+  (function initColor(){
+    const match = swatchesEl.querySelector('.swatch[data-color="'+state.color.toLowerCase()+'"]');
+    const preset = PRESETS.find(p=>p.c.toLowerCase()===state.color.toLowerCase());
+    setColor(state.color, preset?preset.n:'Custom', match);
+  })();
+
+  // ----- Dropdown open/close -----
+  const brushTrigger = document.getElementById('brushTrigger');
+  const colorTrigger = document.getElementById('colorTrigger');
+  const colorPanel   = document.getElementById('colorPanel');
+
+  function closeAllDD(){
+    [brushPanel, colorPanel].forEach(p=>p.classList.remove('open'));
+    [brushTrigger, colorTrigger].forEach(t=>t.classList.remove('open'));
+  }
+  function toggleDD(panel, trigger){
+    const isOpen = panel.classList.contains('open');
+    closeAllDD();
+    if(!isOpen){ panel.classList.add('open'); trigger.classList.add('open'); }
+  }
+  brushTrigger.addEventListener('click', (e)=>{ e.stopPropagation(); toggleDD(brushPanel, brushTrigger); });
+  colorTrigger.addEventListener('click', (e)=>{ e.stopPropagation(); toggleDD(colorPanel, colorTrigger); });
+  brushPanel.addEventListener('click', (e)=>e.stopPropagation());
+  colorPanel.addEventListener('click', (e)=>e.stopPropagation());
+  document.addEventListener('click', ()=>closeAllDD());
+  document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closeAllDD(); });
 
   // ----- Size -----
   const sizeInput = document.getElementById('size');
@@ -555,12 +660,21 @@
     sizeVal.textContent = state.size + 'px';
   });
 
-  // ----- Clear -----
-  document.getElementById('clearBtn').addEventListener('click', ()=>{
+  // ----- Clear (with confirmation) -----
+  const clearModal = document.getElementById('clearModal');
+  function doClear(){
     fillPaper();
     actx.clearRect(0,0,W,H);
     render();
-  });
+  }
+  function openClearModal(){ clearModal.classList.add('open'); }
+  function closeClearModal(){ clearModal.classList.remove('open'); }
+
+  document.getElementById('clearBtn').addEventListener('click', openClearModal);
+  document.getElementById('clearCancel').addEventListener('click', closeClearModal);
+  document.getElementById('clearConfirm').addEventListener('click', ()=>{ doClear(); closeClearModal(); });
+  clearModal.addEventListener('click', (e)=>{ if(e.target === clearModal) closeClearModal(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape' && clearModal.classList.contains('open')) closeClearModal(); });
 
   // ----- Save JPG (drawing space only) -----
   document.getElementById('saveBtn').addEventListener('click', ()=>{
